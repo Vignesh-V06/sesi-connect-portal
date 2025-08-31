@@ -111,7 +111,7 @@ const SolarIntro = ({ onComplete }) => {
   const [fadeOut, setFadeOut] = useState(false);
   const startTime = useRef(Date.now());
   const zoomPhase = useRef(false);
-  const initialZoom = useRef(1);
+  const zoomCompleted = useRef(false);
   const sunSize = 30;
 
   const planets = [
@@ -162,123 +162,183 @@ const SolarIntro = ({ onComplete }) => {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
+    const drawSun = (rCore, rCorona) => {
+      const core = ctx.createRadialGradient(-rCore * 0.15, -rCore * 0.15, rCore * 0.05, 0, 0, rCore);
+      core.addColorStop(0, '#fffde7');
+      core.addColorStop(0.35, '#ffe15a');
+      core.addColorStop(0.7, '#ffb300');
+      core.addColorStop(1, '#ff8f00');
+      ctx.fillStyle = core;
+      ctx.beginPath();
+      ctx.arc(0, 0, rCore, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.lineWidth = Math.max(1, rCore * 0.02);
+      ctx.strokeStyle = 'rgba(255, 220, 120, 0.9)';
+      ctx.beginPath();
+      ctx.arc(0, 0, rCore * 0.995, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      const corona = ctx.createRadialGradient(0, 0, rCore * 0.9, 0, 0, rCorona);
+      corona.addColorStop(0, 'rgba(255, 200, 70, 0.25)');
+      corona.addColorStop(0.5, 'rgba(255, 150, 40, 0.12)');
+      corona.addColorStop(1, 'rgba(255, 120, 0, 0)');
+      ctx.fillStyle = corona;
+      ctx.beginPath();
+      ctx.arc(0, 0, rCorona, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    const drawMoon = (mx, my, r) => {
+      ctx.save();
+      ctx.translate(mx, my);
+
+      const grad = ctx.createRadialGradient(-r * 0.5, -r * 0.6, r * 0.2, 0, 0, r);
+      grad.addColorStop(0, '#e0e0e0');
+      grad.addColorStop(0.5, '#c6c6c6');
+      grad.addColorStop(1, '#8f8f8f');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      const shade = ctx.createRadialGradient(r * 0.2, r * 0.3, r * 0.2, 0, 0, r * 1.2);
+      shade.addColorStop(0, 'rgba(0,0,0,0.0)');
+      shade.addColorStop(1, 'rgba(0,0,0,0.35)');
+      ctx.fillStyle = shade;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.globalAlpha = 0.35;
+      const craters = [
+        { x: -r * 0.2, y: -r * 0.1, rr: r * 0.25 },
+        { x: r * 0.3, y: r * 0.05, rr: r * 0.18 },
+        { x: -r * 0.05, y: r * 0.35, rr: r * 0.15 },
+        { x: r * -0.35, y: r * 0.25, rr: r * 0.12 }
+      ];
+      craters.forEach(c => {
+        const cg = ctx.createRadialGradient(c.x - c.rr * 0.3, c.y - c.rr * 0.3, c.rr * 0.2, c.x, c.y, c.rr);
+        cg.addColorStop(0, '#a8a8a8');
+        cg.addColorStop(0.6, '#7a7a7a');
+        cg.addColorStop(1, 'rgba(0,0,0,0.3)');
+        ctx.fillStyle = cg;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.rr, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      ctx.restore();
+    };
+
     const animate = () => {
       const now = Date.now();
       const elapsed = (now - startTime.current) / 1000;
+
+      const w = canvas.width, h = canvas.height;
+      const centerX = w / 2, centerY = h / 2;
       ctx.fillStyle = '#000008';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, w, h);
 
-      for (let i = 0; i < 300; i++) {
-        const x = (i * 9641 + elapsed * 8) % canvas.width;
-        const y = (i * 9643) % canvas.height;
-        const twinkle = Math.sin(elapsed * 1.5 + i) * 0.3 + 0.7;
-        const brightness = (i % 5) * 0.4 + 0.8;
-        const finalBrightness = Math.min(brightness * twinkle, 1);
-        ctx.fillStyle = i % 20 === 0
-          ? `rgba(255, 255, 255, ${finalBrightness})`
-          : `rgba(255, 255, 255, ${finalBrightness * 0.9})`;
-        ctx.beginPath();
-        ctx.fillRect(x, y, i % 20 === 0 ? 2.5 : 1.2, i % 20 === 0 ? 2.5 : 1.2);
+      if (!zoomCompleted.current) {
+        for (let i = 0; i < 300; i++) {
+          const x = (i * 9641 + elapsed * 8) % w;
+          const y = (i * 9643) % h;
+          const twinkle = Math.sin(elapsed * 1.5 + i) * 0.3 + 0.7;
+          const brightness = (i % 5) * 0.4 + 0.8;
+          const finalBrightness = Math.min(brightness * twinkle, 1);
+          ctx.fillStyle = i % 20 === 0
+            ? `rgba(255,255,255,${finalBrightness})`
+            : `rgba(255,255,255,${finalBrightness * 0.9})`;
+          ctx.fillRect(x, y, i % 20 === 0 ? 2.5 : 1.2, i % 20 === 0 ? 2.5 : 1.2);
+        }
       }
 
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-
-      if (elapsed > 2 && !zoomPhase.current) {
-        zoomPhase.current = true;
-        initialZoom.current = 1;
-      }
+      if (elapsed > 2 && !zoomPhase.current) zoomPhase.current = true;
 
       let zoom = 1;
-      let sunZoomSize = 35;
+      let sunCore = 35;
+      let sunCorona = 80;
 
-      if (zoomPhase.current) {
-        const zoomProgress = Math.min((elapsed - 2) / 3, 1);
+      if (zoomPhase.current && !zoomCompleted.current) {
+        const zoomProgress = Math.min((elapsed - 2) / 2.8, 1);
         zoom = 1 + zoomProgress * 12;
-        sunZoomSize = 35 + zoomProgress * 180;
-        if (zoomProgress >= 1 && !isSkipped) {
+        sunCore = 35 + zoomProgress * 180;
+        sunCorona = sunCore * 1.6;
+
+        if (zoomProgress >= 1) {
+          zoomCompleted.current = true;
           setTimeout(() => {
             setFadeOut(true);
             if (audioRef.current) audioRef.current.pause();
-            setTimeout(() => onComplete(), 1000);
-          }, 500);
-          return;
+            setTimeout(() => onComplete(), 900);
+          }, 350);
         }
+      } else if (zoomCompleted.current) {
+        zoom = 13;
+        sunCore = 215;
+        sunCorona = 215 * 1.6;
       }
 
       ctx.save();
       ctx.translate(centerX, centerY);
       ctx.scale(zoom, zoom);
 
-      // Draw sun
-      const sunGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, sunZoomSize);
-      sunGradient.addColorStop(0, '#fffbe6');
-      sunGradient.addColorStop(0.3, '#ffd54f');
-      sunGradient.addColorStop(0.6, '#f57c00');
-      sunGradient.addColorStop(1, 'rgba(245, 124, 0, 0.2)');
-      ctx.fillStyle = sunGradient;
-      ctx.beginPath();
-      ctx.arc(0, 0, sunZoomSize, 0, Math.PI * 2);
-      ctx.fill();
+      drawSun(sunCore, sunCorona);
 
-      // Orbits
-      planetStates.current.forEach(planet => {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-        ctx.lineWidth = 1 / zoom;
-        ctx.beginPath();
-        ctx.arc(0, 0, planet.radius, 0, Math.PI * 2);
-        ctx.stroke();
-      });
-
-      // Planets
-      planetStates.current.forEach(planet => {
-        planet.angle += planet.speed;
-        const x = Math.cos(planet.angle) * planet.radius;
-        const y = Math.sin(planet.angle) * planet.radius;
-
-        ctx.save();
-        ctx.translate(x, y);
-
-        // Saturn's rings
-        if (planet.rings) {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-          ctx.lineWidth = 2 / zoom;
+      if (!zoomCompleted.current) {
+        planetStates.current.forEach(planet => {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+          ctx.lineWidth = 1 / zoom;
           ctx.beginPath();
-          ctx.ellipse(0, 0, planet.size * 2.2, planet.size * 1.2, 0, 0, Math.PI * 2);
+          ctx.arc(0, 0, planet.radius, 0, Math.PI * 2);
           ctx.stroke();
-        }
 
-        // Jupiter Great Red Spot
-        if (planet.name === 'Jupiter') {
-          ctx.fillStyle = 'rgba(255, 80, 80, 0.5)';
+          planet.angle += planet.speed;
+          const x = Math.cos(planet.angle) * planet.radius;
+          const y = Math.sin(planet.angle) * planet.radius;
+
+          ctx.save();
+          ctx.translate(x, y);
+
+          if (planet.rings) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 2 / zoom;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, planet.size * 2.2, planet.size * 1.2, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          if (planet.name === 'Jupiter') {
+            ctx.fillStyle = 'rgba(255, 80, 80, 0.5)';
+            ctx.beginPath();
+            ctx.ellipse(planet.size * 0.3, planet.size * 0.2, 2, 1.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          const gradient = ctx.createRadialGradient(-planet.size * 0.3, -planet.size * 0.3, 0, 0, 0, planet.size);
+          gradient.addColorStop(0, planet.color);
+          gradient.addColorStop(1, planet.secondaryColor || '#000');
+          ctx.fillStyle = gradient;
           ctx.beginPath();
-          ctx.ellipse(planet.size * 0.3, planet.size * 0.2, 2, 1.2, 0, 0, Math.PI * 2);
+          ctx.arc(0, 0, planet.size, 0, Math.PI * 2);
           ctx.fill();
-        }
 
-        // Planet body
-        const gradient = ctx.createRadialGradient(-planet.size * 0.3, -planet.size * 0.3, 0, 0, 0, planet.size);
-        gradient.addColorStop(0, planet.color);
-        gradient.addColorStop(1, planet.secondaryColor || '#000');
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(0, 0, planet.size, 0, Math.PI * 2);
-        ctx.fill();
+          if (planet.name === 'Earth') {
+            const moonAngle = elapsed * 2.2;
+            const moonDist = planet.size + 16;
+            const mx = Math.cos(moonAngle) * moonDist;
+            const my = Math.sin(moonAngle) * moonDist;
+            drawMoon(mx, my, 2.6);
+          }
 
-        // Earth Moon
-        if (planet.name === 'Earth') {
-          const moonAngle = elapsed * 2.5;
-          const moonDist = planet.size + 16;
-          const mx = Math.cos(moonAngle) * moonDist;
-          const my = Math.sin(moonAngle) * moonDist;
-          ctx.fillStyle = '#ccc';
-          ctx.beginPath();
-          ctx.arc(mx, my, 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        ctx.restore();
-      });
+          ctx.restore();
+        });
+      }
 
       ctx.restore();
 
