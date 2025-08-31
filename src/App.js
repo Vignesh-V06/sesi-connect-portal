@@ -174,7 +174,7 @@ const SolarIntro = ({ onComplete }) => {
       ctx.fill();
 
       ctx.lineWidth = Math.max(1, rCore * 0.02);
-      ctx.strokeStyle = 'rgba(255, 220, 120, 0.9)';
+      ctx.strokeStyle = '#ff8f00';
       ctx.beginPath();
       ctx.arc(0, 0, rCore * 0.995, 0, Math.PI * 2);
       ctx.stroke();
@@ -245,6 +245,7 @@ const SolarIntro = ({ onComplete }) => {
       ctx.fillRect(0, 0, w, h);
 
       if (!zoomCompleted.current) {
+        // stars
         for (let i = 0; i < 300; i++) {
           const x = (i * 9641 + elapsed * 8) % w;
           const y = (i * 9643) % h;
@@ -265,85 +266,93 @@ const SolarIntro = ({ onComplete }) => {
       let sunCorona = 80;
 
       if (zoomPhase.current && !zoomCompleted.current) {
-        const zoomProgress = Math.min((elapsed - 2) / 2.8, 1);
-        zoom = 1 + zoomProgress * 12;
-        sunCore = 35 + zoomProgress * 180;
-        sunCorona = sunCore * 1.6;
+        // extend duration for smoother zoom
+        const zoomProgress = Math.min((elapsed - 2) / 5, 1);
+
+        // apply easing (easeInOutCubic)
+        const easeInOutCubic = t =>
+          t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+        const easedProgress = easeInOutCubic(zoomProgress);
+
+        // use eased progress for zoom
+        zoom = 1 + easedProgress * 26.5;
+        //sunCore = 35 + zoomProgress * 180;
+        //sunCorona = sunCore * 1.6;
 
         if (zoomProgress >= 1) {
           zoomCompleted.current = true;
           setTimeout(() => {
             setFadeOut(true);
             if (audioRef.current) audioRef.current.pause();
-            setTimeout(() => onComplete(), 900);
-          }, 350);
+            setTimeout(() => onComplete(), 800);
+          }, 200);
         }
       } else if (zoomCompleted.current) {
-        zoom = 13;
-        sunCore = 215;
-        sunCorona = 215 * 1.6;
+        zoom = 30;
+        //sunCore = 215;
+        //sunCorona = 215 * 1.6;
       }
 
       ctx.save();
       ctx.translate(centerX, centerY);
+
+      // 🔥 SCALE THE WHOLE SYSTEM (sun + planets)
       ctx.scale(zoom, zoom);
 
+      // Sun
       drawSun(sunCore, sunCorona);
 
-      if (!zoomCompleted.current) {
-        planetStates.current.forEach(planet => {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-          ctx.lineWidth = 1 / zoom;
+      // Planets always drawn, they scale with ctx.scale
+      planetStates.current.forEach(planet => {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.lineWidth = 1 / zoom;
+        ctx.beginPath();
+        ctx.arc(0, 0, planet.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        planet.angle += planet.speed;
+        const x = Math.cos(planet.angle) * planet.radius;
+        const y = Math.sin(planet.angle) * planet.radius;
+
+        ctx.save();
+        ctx.translate(x, y);
+
+        if (planet.rings) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.lineWidth = 2 / zoom;
           ctx.beginPath();
-          ctx.arc(0, 0, planet.radius, 0, Math.PI * 2);
+          ctx.ellipse(0, 0, planet.size * 2.2, planet.size * 1.2, 0, 0, Math.PI * 2);
           ctx.stroke();
+        }
 
-          planet.angle += planet.speed;
-          const x = Math.cos(planet.angle) * planet.radius;
-          const y = Math.sin(planet.angle) * planet.radius;
+        const gradient = ctx.createRadialGradient(
+          -planet.size * 0.3, -planet.size * 0.3, 0,
+          0, 0, planet.size
+        );
+        gradient.addColorStop(0, planet.color);
+        gradient.addColorStop(1, planet.secondaryColor || '#000');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, planet.size, 0, Math.PI * 2);
+        ctx.fill();
 
-          ctx.save();
-          ctx.translate(x, y);
+        if (planet.name === 'Earth') {
+          const moonAngle = elapsed * 2.2;
+          const moonDist = planet.size + 16;
+          const mx = Math.cos(moonAngle) * moonDist;
+          const my = Math.sin(moonAngle) * moonDist;
+          drawMoon(mx, my, 2.6);
+        }
 
-          if (planet.rings) {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.lineWidth = 2 / zoom;
-            ctx.beginPath();
-            ctx.ellipse(0, 0, planet.size * 2.2, planet.size * 1.2, 0, 0, Math.PI * 2);
-            ctx.stroke();
-          }
-
-          if (planet.name === 'Jupiter') {
-            ctx.fillStyle = 'rgba(255, 80, 80, 0.5)';
-            ctx.beginPath();
-            ctx.ellipse(planet.size * 0.3, planet.size * 0.2, 2, 1.2, 0, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          const gradient = ctx.createRadialGradient(-planet.size * 0.3, -planet.size * 0.3, 0, 0, 0, planet.size);
-          gradient.addColorStop(0, planet.color);
-          gradient.addColorStop(1, planet.secondaryColor || '#000');
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(0, 0, planet.size, 0, Math.PI * 2);
-          ctx.fill();
-
-          if (planet.name === 'Earth') {
-            const moonAngle = elapsed * 2.2;
-            const moonDist = planet.size + 16;
-            const mx = Math.cos(moonAngle) * moonDist;
-            const my = Math.sin(moonAngle) * moonDist;
-            drawMoon(mx, my, 2.6);
-          }
-
-          ctx.restore();
-        });
-      }
+        ctx.restore();
+      });
 
       ctx.restore();
 
       if (!isSkipped) animationRef.current = requestAnimationFrame(animate);
     };
+
 
     animate();
     return () => {
