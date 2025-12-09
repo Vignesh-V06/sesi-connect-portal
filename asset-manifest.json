@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/sesi-connect-portal/static/css/main.e6c13ad2.css",
+    "main.js": "/sesi-connect-portal/static/js/main.2009b44e.js",
+    "static/js/453.e1467635.chunk.js": "/sesi-connect-portal/static/js/453.e1467635.chunk.js",
+    "index.html": "/sesi-connect-portal/index.html",
+    "main.e6c13ad2.css.map": "/sesi-connect-portal/static/css/main.e6c13ad2.css.map",
+    "main.2009b44e.js.map": "/sesi-connect-portal/static/js/main.2009b44e.js.map",
+    "453.e1467635.chunk.js.map": "/sesi-connect-portal/static/js/453.e1467635.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.2009b44e.js"
+  ]
+}
