@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-
+import Home from './component/home/home';
+import HeaderOnly from './component/header/header';
+import Footer from './component/footer/footer.';
 const styles = `
 .solar-intro {
   position: fixed;
@@ -431,7 +433,7 @@ const MainContent = () => (
 
 const App = () => {
   const [showIntro, setShowIntro] = useState(true);
-  return <>{showIntro ? <SolarIntro onComplete={() => setShowIntro(false)} /> : <MainContent />}</>;
+  return <>{showIntro ? <SolarIntro onComplete={() => setShowIntro(false)} /> : <Home />} <HeaderOnly/> <Footer/></>;
 };
 
 export default App;
